@@ -1,0 +1,36 @@
+Postmortem: Apache 500 Error Debugging and Automation Incident on August 14, 2024
+
+Issue Summary:
+•	Duration: August 14, 2024, 9:30 AM - 11:00 AM UTC (1 hour, 30 minutes)
+•	Impact: The Apache web server was returning HTTP 500 errors for all requests, resulting in complete downtime for the affected web service. Approximately 100% of users were unable to access the application.
+•	Root Cause: A missing configuration file and incorrect file permissions on a critical directory caused Apache to fail during request processing.
+
+Timeline:
+•	9:30 AM: Monitoring detected a spike in HTTP 500 errors across all web endpoints.
+•	9:35 AM: I confirmed the issue by running curl and observing 500 errors from the affected web server.
+•	9:40 AM: I used strace to attach to the Apache process to capture system calls and diagnose the issue.
+•	9:50 AM: strace revealed that Apache was unable to access a required configuration file (/etc/httpd/conf.d/mysite.conf) due to missing file permissions and directory ownership errors.
+•	10:00 AM: I confirmed that the missing configuration file was essential for the site to function correctly.
+•	10:15 AM: I then decided to address the issue by setting the correct permissions and automating the fix with Puppet for consistency.
+•	10:30 AM: A Puppet manifest was created to manage file permissions and ensure the configuration file exists with the correct content.
+•	10:45 AM: The Puppet code was applied to the affected servers, and Apache was restarted.
+•	11:00 AM: Service was fully restored, and all requests were returning HTTP 200 responses. Monitoring confirmed resolution.
+
+•	
+Root Cause and Resolution:
+The root cause was a combination of missing file permissions and a missing configuration file. When Apache attempted to load the site, it failed due to these issues, leading to HTTP 500 errors. The specific problem was identified by using strace, which captured system calls that indicated permission errors and the absence of the necessary configuration file.
+To resolve the issue, the first thing I did was manually corrected the permissions and ownership of the directory and ensured the configuration file was in place. To prevent recurrence, the fix was automated using Puppet. The Puppet manifest (0-strace_is_your_friend.pp) included:
+1.	A file resource to ensure the configuration file exists with the correct content.
+2.	A file resource to manage the directory’s ownership and permissions.
+3.	A service resource to restart Apache automatically after changes are applied.
+
+
+Corrective and Preventative Measures:
+Improvements/Tasks:
+1.	Automate Configuration Management: Continue using Puppet for managing critical configurations to ensure consistency across all servers.
+2.	File Integrity Monitoring: Implement monitoring to detect missing or altered configuration files.
+3.	Permissions Auditing: Schedule periodic audits of directory and file permissions to catch issues proactively.
+4.	Enhanced Error Logging: Improve Apache’s logging configuration to capture more detailed error messages, reducing the need for strace in similar scenarios.
+5.	Documentation: Update runbooks with detailed steps for troubleshooting Apache 500 errors using tools like strace.
+
+
